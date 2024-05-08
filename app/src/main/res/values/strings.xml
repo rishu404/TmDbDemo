@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">TmdbDemoTataAIG</string>
+    <string name="tab_layout_description">Tab layout for Popular movies</string>
+    <string name="offline_network_content">Unable to connect to TMDB Server. There could be a problem with you internet connection</string>
+    <string name="offline_network_error_heading">Network Error !</string>
+    <string name="text_offline_mode">Go Offline Mode</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="language_text">Language:</string>
+    <string name="rating_text">Rating:</string>
+    <string name="release_date_text">Release date:</string>
+    <string name="overview_text">Overview</string>
+</resources>
