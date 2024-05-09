@@ -1,18 +1,11 @@
 package com.example.tmdbdemotataaig.appcontroller
 
 import android.app.Application
-import android.content.Context
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.room.Room
-import com.example.tmdbdemotataaig.database.MoviesDatabase
 import com.example.tmdbdemotataaig.database.MoviesDatabaseController
 import okhttp3.OkHttpClient
 
-public class AppController : Application() {
-    /**
-     * Debuggable TAG
-     */
-    val TAG = "AppController"
+class AppController : Application() {
 
     /**
      * OkHttpClient used for sending cookies in all API requests.
@@ -35,7 +28,7 @@ public class AppController : Application() {
     override fun onCreate() {
         super.onCreate()
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
-//        MoviesDatabaseController.initialiseRoomDB(this)
+        MoviesDatabaseController.initialiseRoomDB(this)
     }
 
     fun getOkHttpClientNonNull(): OkHttpClient {

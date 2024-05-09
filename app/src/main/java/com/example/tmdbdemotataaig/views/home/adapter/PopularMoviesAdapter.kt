@@ -1,4 +1,4 @@
-package com.example.tmdbdemotataaig.views.popular_movies_fragment.adapter
+package com.example.tmdbdemotataaig.views.home.adapter
 
 import android.app.Activity
 import android.view.LayoutInflater
@@ -11,7 +11,7 @@ import com.bumptech.glide.Glide
 import com.example.tmdbdemotataaig.R
 import com.example.tmdbdemotataaig.listeners.MovieItemClickListener
 import com.example.tmdbdemotataaig.utils.MoviesUrls
-import com.example.tmdbdemotataaig.views.popular_movies_fragment.model.MovieModel
+import com.example.tmdbdemotataaig.views.home.model.MovieModel
 
 class PopularMoviesAdapter(
     private val activity: Activity,
@@ -46,7 +46,7 @@ class PopularMoviesAdapter(
     }
 
     private fun initClickListeners(
-        holder: PopularMoviesAdapter.PopularMoviesViewHolder,
+        holder: PopularMoviesViewHolder,
         movieItem: MovieModel
     ) {
         holder.itemView.setOnClickListener {

@@ -1,18 +1,23 @@
-package com.example.tmdbdemotataaig.views.popular_movies_fragment
+package com.example.tmdbdemotataaig.views.home
 
 import android.app.Activity
 import android.net.Uri
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.androidnetworking.error.ANError
+import com.example.tmdbdemotataaig.BuildConfig
+import com.example.tmdbdemotataaig.database.MoviesDatabaseController
 import com.example.tmdbdemotataaig.listeners.NetworkDispatcher
 import com.example.tmdbdemotataaig.utils.AppUtilsKotlin
-import com.example.tmdbdemotataaig.utils.GlobalConfigs
 import com.example.tmdbdemotataaig.utils.MoviesUrls
 import com.example.tmdbdemotataaig.utils.NetworkManager
-import com.example.tmdbdemotataaig.views.popular_movies_fragment.model.MovieModel
-import com.example.tmdbdemotataaig.views.popular_movies_fragment.model.MoviesResponseModel
+import com.example.tmdbdemotataaig.views.home.model.MovieModel
+import com.example.tmdbdemotataaig.views.home.model.MoviesResponseModel
 import com.google.gson.Gson
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class PopularMoviesViewModel : ViewModel() {
     private val mTAG = PopularMoviesViewModel::class.java.simpleName.toString()
@@ -20,6 +25,10 @@ class PopularMoviesViewModel : ViewModel() {
     private lateinit var mUrlBuilder: Uri.Builder
     private var popularMoviesMutableList: MutableLiveData<ArrayList<MovieModel>>? =
         MutableLiveData()
+    private var internetConnectStatusMutableLiveData: MutableLiveData<Boolean> = MutableLiveData()
+    fun getInternetConnectionStatus(): MutableLiveData<Boolean> {
+        return internetConnectStatusMutableLiveData
+    }
 
     fun getPopularMoviesList(): MutableLiveData<ArrayList<MovieModel>>? {
         return popularMoviesMutableList
@@ -40,12 +49,14 @@ class PopularMoviesViewModel : ViewModel() {
                 object : NetworkDispatcher {
                     override fun getResponse(tag: String, data: String) {
                         if (data != "") {
-                                val moviesResponseModel = Gson().fromJson(data, MoviesResponseModel::class.java)
-                                AppUtilsKotlin.showLog(
-                                    mTAG,
-                                    "moviesResponseModel: $moviesResponseModel"
-                                )
-                                popularMoviesMutableList?.value = moviesResponseModel?.moviesList
+                            val moviesResponseModel =
+                                Gson().fromJson(data, MoviesResponseModel::class.java)
+                            AppUtilsKotlin.showLog(
+                                mTAG,
+                                "moviesResponseModel: $moviesResponseModel"
+                            )
+                            insertMoviesInDatabase(moviesResponseModel?.moviesList)
+                            popularMoviesMutableList?.value = moviesResponseModel?.moviesList
                         } else {
                             popularMoviesMutableList?.value = arrayListOf()
                         }
@@ -56,20 +67,37 @@ class PopularMoviesViewModel : ViewModel() {
                         AppUtilsKotlin.showLog(mTAG, "error in getting movies")
                     }
 
-                },
-                activity.applicationContext
+                }
             )
         } else {
-            // toDo: to add the pop-up or error banner for no internet
+            internetConnectStatusMutableLiveData.value = false
         }
 
+    }
+
+    private fun insertMoviesInDatabase(moviesList: ArrayList<MovieModel>?) {
+        CoroutineScope(Dispatchers.IO).launch {
+            moviesList?.let {
+                MoviesDatabaseController.databaseRepository.insertMovies(
+                    it
+                )
+            }
+        }
+    }
+
+    fun getMoviesFromDatabase(owner: LifecycleOwner, pageNumber: Int) {
+        isLoadingMutable.value = true
+        MoviesDatabaseController.databaseRepository.getAllMovies(pageNumber).observe(owner) {
+            popularMoviesMutableList?.value = null
+            popularMoviesMutableList?.postValue(it as ArrayList<MovieModel>?)
+        }
     }
 
 
     private fun getPopularMoviesUrl(pageNumber: Int): String {
         mUrlBuilder = Uri.Builder()
         mUrlBuilder.appendPath(MoviesUrls.POPULAR_MOVIES_URL)
-            .appendQueryParameter(MoviesUrls.API_KEY_STRING, GlobalConfigs.API_KEY)
+            .appendQueryParameter(MoviesUrls.API_KEY_STRING, BuildConfig.API_KEY)
             .appendQueryParameter("page", pageNumber.toString())
         return mUrlBuilder.build().toString()
     }

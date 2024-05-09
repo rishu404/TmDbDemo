@@ -5,7 +5,6 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
 import com.bumptech.glide.Glide
@@ -13,7 +12,7 @@ import com.example.tmdbdemotataaig.R
 import com.example.tmdbdemotataaig.utils.AppUtilsKotlin
 import com.example.tmdbdemotataaig.utils.GlobalConfigs
 import com.example.tmdbdemotataaig.utils.MoviesUrls
-import com.example.tmdbdemotataaig.views.popular_movies_fragment.model.MovieModel
+import com.example.tmdbdemotataaig.views.home.model.MovieModel
 import com.google.gson.Gson
 import kotlin.math.roundToInt
 
@@ -90,6 +89,5 @@ class MovieDetailedViewFragment : Fragment() {
         tvMovieRatings.text = (movieModel.voteAverage?.times(10)?.roundToInt()).toString() + "%"
         tvMovieReleaseDate.text = movieModel.releaseDate.toString()
         tvMovieOverView.text = movieModel.overview
-
     }
 }

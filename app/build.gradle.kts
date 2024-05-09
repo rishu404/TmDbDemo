@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsKotlinAndroid)
-    id("com.google.devtools.ksp")
+    id("kotlin-kapt")
 }
 
 android {
@@ -14,7 +14,7 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
+        buildConfigField("String", "API_KEY", "\"YOUR_API_KEY\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -67,9 +67,9 @@ dependencies {
     implementation(libs.androidx.cardview)
 
     // Room Database
-    implementation("androidx.room:room-runtime:2.6.1")
-    annotationProcessor ("androidx.room:room-compiler:2.6.1")
-
+    implementation(libs.androidx.room.runtime)
+    kapt ("androidx.room:room-compiler:2.6.1")
+    implementation(libs.androidx.room.ktx)
 
 
 

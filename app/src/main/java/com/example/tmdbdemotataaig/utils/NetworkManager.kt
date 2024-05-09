@@ -1,17 +1,13 @@
 package com.example.tmdbdemotataaig.utils
 
-import android.content.Context
 import com.androidnetworking.AndroidNetworking
-import com.androidnetworking.common.Priority
 import com.androidnetworking.error.ANError
 import com.androidnetworking.interceptors.HttpLoggingInterceptor
-import com.androidnetworking.interfaces.JSONObjectRequestListener
 import com.androidnetworking.interfaces.OkHttpResponseAndStringRequestListener
 import com.example.tmdbdemotataaig.appcontroller.AppController
 import com.example.tmdbdemotataaig.listeners.NetworkDispatcher
 import okhttp3.OkHttpClient
 import okhttp3.Response
-import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 class NetworkManager {
@@ -22,10 +18,10 @@ class NetworkManager {
 
     /**
      * Android networking get request
-     * @param url API url
+     * @param endPointUrl API url
      * @param listener for callbacks
-     * @param context context*/
-    fun getRequest(endPointUrl: String, listener: NetworkDispatcher, context: Context) {
+     **/
+    fun getRequest(endPointUrl: String, listener: NetworkDispatcher) {
         if (endPointUrl.trim().isEmpty()) {
             AppUtilsKotlin.showErrorLog(
                 mTAG, "Get end points URL is empty so direct return."
@@ -72,15 +68,7 @@ class NetworkManager {
                         "get error response code : " + anError.errorCode.toString() + "error body : ${anError.errorBody} error response : ${anError.response} error Detail : ${anError.errorDetail}"
                     )
 
-                    if (listener != null) {
-                        //redirect to error class
-                        listener.getError(mURL, anError)
-                    } else {
-                        AppUtilsKotlin.showErrorLog(
-                            mTAG,
-                            "listener is null get error."
-                        )
-                    }
+                    listener.getError(mURL, anError)
                 }
             })
     }

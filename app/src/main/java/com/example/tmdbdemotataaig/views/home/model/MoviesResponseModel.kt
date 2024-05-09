@@ -1,4 +1,4 @@
-package com.example.tmdbdemotataaig.views.popular_movies_fragment.model
+package com.example.tmdbdemotataaig.views.home.model
 
 import com.google.gson.annotations.SerializedName
 

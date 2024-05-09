@@ -1,121 +1,185 @@
 package com.example.tmdbdemotataaig.views.home
 
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
+import androidx.appcompat.widget.AppCompatTextView
+import androidx.appcompat.widget.Toolbar
 import androidx.fragment.app.Fragment
-import androidx.viewpager2.widget.ViewPager2
+import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.tmdbdemotataaig.R
+import com.example.tmdbdemotataaig.listeners.MovieItemClickListener
 import com.example.tmdbdemotataaig.utils.AppUtilsKotlin
 import com.example.tmdbdemotataaig.utils.GlobalConfigs
-import com.example.tmdbdemotataaig.views.home.adapter.HomeTabsAdapter
-import com.google.android.material.tabs.TabLayout
+import com.example.tmdbdemotataaig.views.home.adapter.PopularMoviesAdapter
+import com.example.tmdbdemotataaig.views.home.model.MovieModel
+import com.example.tmdbdemotataaig.views.movie_detailed_view.MovieDetailedViewFragment
+import com.google.gson.Gson
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
-class HomeActivity : AppCompatActivity() {
+class HomeActivity : AppCompatActivity(), MovieItemClickListener {
     private val mTag = HomeActivity::class.java.simpleName.toString()
-    private lateinit var mViewPager2: ViewPager2
-    private lateinit var mTabLayout: TabLayout
-    private lateinit var mHomeTabsAdapter: HomeTabsAdapter
-    private val tabIconsUnfilled = arrayOf(
-        R.drawable.ic_online_movies_unselected, R.drawable.ic_offline_movies_unselected
-    )
-
-    private val tabIconsFilled = arrayOf(
-        R.drawable.ic_online_movies_selected, R.drawable.ic_offline_movies_selected
-    )
-
+    private lateinit var mMoviesViewModel: PopularMoviesViewModel
+    private lateinit var mPopularMoviesAdapter: PopularMoviesAdapter
+    private lateinit var moviesListRecyclerView: RecyclerView
+    private lateinit var offlineModeTv: AppCompatTextView
+    private lateinit var customToolbar: Toolbar
+    private var isLastPage = false
+    private var currentPage = 1
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = resources.getColor(R.color.tabs_text_icon, theme)
         setContentView(R.layout.activity_home)
         initViews()
-        setupViewPagerAdapter()
         initListeners()
+        initData()
+        initObservers()
+        initMoviesListAdapter()
     }
 
     private fun initListeners() {
-        mTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                if (tab != null) {
-                    mViewPager2.currentItem = tab.position
-                    when (tab.position) {
-                        0 -> {
-                            tab.icon = ContextCompat.getDrawable(
-                                this@HomeActivity, tabIconsFilled[0]
-                            )
-                        }
+        moviesListRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                if (dy > 0) {
+                    val layoutManager = recyclerView.layoutManager as GridLayoutManager
+                    val visibleItemCount = layoutManager.childCount
+                    val totalItemCount = layoutManager.itemCount
+                    val firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition()
 
-                        1 -> {
-                            tab.icon = ContextCompat.getDrawable(
-                                this@HomeActivity, tabIconsFilled[1]
-                            )
-                        }
-                    }
-                } else {
-                    AppUtilsKotlin.showLog(mTag, "tab is null in onTabSelected()")
-                }
-            }
-
-            override fun onTabUnselected(tab: TabLayout.Tab?) {
-                if (tab != null) {
-                    when (tab.position) {
-                        0 -> {
-                            tab.icon =
-                                ContextCompat.getDrawable(this@HomeActivity, tabIconsUnfilled[0])
-                        }
-
-                        1 -> {
-                            tab.icon =
-                                ContextCompat.getDrawable(this@HomeActivity, tabIconsUnfilled[1])
+                    if (mMoviesViewModel.isLoadingMutable.value == false && !isLastPage) {
+                        if (visibleItemCount + firstVisibleItemPosition >= totalItemCount && firstVisibleItemPosition >= 0) {
+                            currentPage++
+                            if (AppUtilsKotlin.isNetworkAvailable(this@HomeActivity)) {
+                                fetchMoviesList(currentPage)
+                            } else {
+                                fetchMoviesFromDatabase(currentPage)
+                            }
                         }
                     }
                 }
             }
-
-            override fun onTabReselected(tab: TabLayout.Tab?) {
-
-            }
         })
+    }
 
-        mViewPager2.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                super.onPageSelected(position)
-                if (AppUtilsKotlin.isNetworkAvailable(this@HomeActivity)) {
-                    mTabLayout.selectTab(
-                        mTabLayout.getTabAt(position)
-                    )
-                } else {
-                    mTabLayout.selectTab(
-                        mTabLayout.getTabAt(1)
-                    )
-                }
-
-            }
-        })
+    private fun initData() {
+        mMoviesViewModel = ViewModelProvider(this)[PopularMoviesViewModel::class.java]
     }
 
     private fun initViews() {
-        mTabLayout = findViewById(R.id.tab_layout_movies)
-        mViewPager2 = findViewById(R.id.view_pager_movies)
-        mViewPager2.isUserInputEnabled = false
-
+        moviesListRecyclerView = findViewById(R.id.rv_popular_movies)
+        customToolbar = findViewById(R.id.custom_toolbar)
+        offlineModeTv = findViewById(R.id.txt_offline_mode_message)
+        setSupportActionBar(customToolbar)
+        supportActionBar?.apply {
+            title = "T M D B"
+            setDisplayHomeAsUpEnabled(false) // hide back button
+        }
     }
 
-    private fun setupViewPagerAdapter() {
-        mHomeTabsAdapter = HomeTabsAdapter(supportFragmentManager, lifecycle)
-        mTabLayout.addTab(
-            mTabLayout.newTab().setText("Popular Movies").setIcon(tabIconsUnfilled[0])
+    private fun initObservers() {
+        mMoviesViewModel.getPopularMoviesList()?.observe(this) {
+            if (it != null && it.isNotEmpty()) {
+                mMoviesViewModel.isLoadingMutable.value = false
+                // add the data in the adapter
+                mPopularMoviesAdapter.addMovies(it)
+                hideOfflineViewShowMoviesView()
+            } else {
+                AppUtilsKotlin.showLog(mTag, "The movies list is empty or null.")
+            }
+        }
+
+        mMoviesViewModel.getInternetConnectionStatus().observe(this) {
+            if (it == false) {
+                mPopularMoviesAdapter.addMovies(arrayListOf())
+                showOfflineViewHideMoviesView()
+                AppUtilsKotlin.showLog(mTag, "No internet connection.")
+            } else {
+                hideOfflineViewShowMoviesView()
+            }
+        }
+    }
+
+    private fun showOfflineViewHideMoviesView() {
+        offlineModeTv.visibility = View.VISIBLE
+        moviesListRecyclerView.visibility = View.GONE
+    }
+
+    private fun hideOfflineViewShowMoviesView() {
+        offlineModeTv.visibility = View.GONE
+        moviesListRecyclerView.visibility = View.VISIBLE
+    }
+
+    private fun initMoviesListAdapter() {
+        // putting span count as 3 as of now, can be configurable in style.xml
+        moviesListRecyclerView.layoutManager = GridLayoutManager(this, 3)
+        mPopularMoviesAdapter = PopularMoviesAdapter(
+            this, this
         )
-        mTabLayout.addTab(
-            mTabLayout.newTab().setText("Offline Movies").setIcon(tabIconsUnfilled[1])
+        moviesListRecyclerView.adapter = mPopularMoviesAdapter
+    }
+
+    private fun fetchMoviesList(pageNumber: Int) {
+        mMoviesViewModel.getPopularMovies(this, pageNumber)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::mMoviesViewModel.isInitialized) {
+            fetchMoviesList(1)
+        } else {
+            AppUtilsKotlin.showLog(mTag, "view model isn't initialized")
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        super.onCreateOptionsMenu(menu)
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        val id = item.itemId
+        when (id) {
+            R.id.offline_mode_item -> {
+                if (AppUtilsKotlin.isNetworkAvailable(this)) {
+                    AppUtilsKotlin.showToast(this, "Internet is Available, showing movies Online")
+                } else {
+                    mPopularMoviesAdapter.addMovies(arrayListOf())
+                    fetchMoviesFromDatabase(1)
+                }
+                return true
+            }
+            else ->
+                return super.onOptionsItemSelected(item)
+        }
+    }
+
+
+    override fun onMovieItemClick(movieModel: MovieModel) {
+        val movieListItemModelBundle = Bundle()
+        movieListItemModelBundle.putString(
+            GlobalConfigs.MOVIE_LIST_ITEM_KEY,
+            Gson().toJson(movieModel)
         )
-        mViewPager2.adapter = mHomeTabsAdapter
+        val movieDetailedFragment = MovieDetailedViewFragment().newInstance()
+        movieDetailedFragment.arguments = movieListItemModelBundle
+        pushFragment(
+            GlobalConfigs.MOVIE_DETAILS_SCREEN_KEY,
+            movieDetailedFragment
+        )
     }
 
     /**
      * method to PUSH the fragment
      */
-    fun pushFragment(key: String, mFragment: Fragment?) {
+    private fun pushFragment(key: String, mFragment: Fragment?) {
         try {
             if (mFragment != null) {
                 // Begin the transaction
@@ -135,40 +199,9 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     *  method to pop the fragment
-     */
-    private fun popFragment(mFragment: Fragment?, isNeedToRemoveFromStack: Boolean) {
-        try {
-            if (mFragment != null) {
-                // Begin the transaction
-                val childFm = mFragment.parentFragment?.childFragmentManager
-                if (childFm != null && childFm.backStackEntryCount > 0) {
-                    AppUtilsKotlin.showErrorLog(
-                        mTag,
-                        "Pop child fragment as child fragments count is ${childFm.backStackEntryCount}."
-                    )
-                    val ft = childFm.beginTransaction()
-                    // remove fragment from view
-                    ft.remove(mFragment)
-                    ft.detach(mFragment)
-                    ft.commit()
-
-                    childFm.popBackStack()
-                } else {
-                    AppUtilsKotlin.showErrorLog(mTag, "Pop fragment : $mFragment")
-                    // Begin the transaction
-                    val ft = supportFragmentManager.beginTransaction()
-                    // remove fragment from view
-                    ft.remove(mFragment)
-                    ft.detach(mFragment)
-                    ft.commit()
-                    supportFragmentManager.popBackStack()
-                }
-            } else AppUtilsKotlin.showErrorLog(mTag, "Pop fragment is null.")
-        } catch (e: Exception) {
-            // catch exception while removing fragment
-            e.printStackTrace()
+    private fun fetchMoviesFromDatabase(pageSize: Int) {
+        CoroutineScope(Dispatchers.Main).launch {
+            mMoviesViewModel.getMoviesFromDatabase(this@HomeActivity, pageSize)
         }
     }
 }
